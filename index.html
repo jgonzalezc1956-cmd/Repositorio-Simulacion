@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="cache-control" content="no-cache, must-revalidate, post-check=0, pre-check=0">
-<title>ClayVision Trainer v0.12 (Altura Límite)</title>
+<title>ClayVision Trainer v0.13 (Entrenamiento Visual)</title>
 
 <style>
 html, body {
@@ -20,7 +20,7 @@ canvas {
 
 <body>
 
-<canvas id="cv" data-version="1212"></canvas>
+<canvas id="cv" data-version="1313"></canvas>
 
 <script>
 const canvas = document.getElementById("cv");
@@ -34,14 +34,14 @@ window.addEventListener("resize", resize);
 resize();
 
 //-------------------------------------------
-// CONFIGURACIÓN (8 SEGUNDOS + ALTURA MÁXIMA CONTROLADA)
+// CONFIGURACIÓN (INVERSIÓN VISUAL PARA ENTRENAMIENTO)
 //-------------------------------------------
-const RADIO_PLATO_MAX = 22;    
-const RADIO_PLATO_MIN = 10;    
-const RADIO_PUNTO_BASE = 5.5;  
+const RADIO_PUNTO_BASE = 26;   // ¡GIGANTE! El punto de anticipación amarillo es el doble de grande
+const RADIO_PLATO_MAX = 11;    // Reducido a la mitad para que no llame tanto la atención
+const RADIO_PLATO_MIN = 6;     
 
-const GRAVEDAD = 930;          // Aumentada ligeramente para retener el nuevo impulso extra
-const TIEMPO_CICLO = 8000;     // 8 segundos entre platos
+const GRAVEDAD = 930;          
+const TIEMPO_CICLO = 8000;     // 8 segundos de descanso
 const TIEMPO_PULL = 1500;      
 const FACTOR_ADELANTO = 0.16;  
 
@@ -63,28 +63,30 @@ let esperando = true;
 let temporizador = TIEMPO_CICLO;
 let mostrarPullText = false;
 
+// Variable testigo para alternar lados de forma estricta (false = izquierda, true = derecha)
+let alternarLado = false;
+
 //-------------------------------------------
 function lanzar() {
     plato.visible = true;
     mostrarPullText = false;
     plato.progreso = 0;
 
-    const lado = Math.random() < 0.5 ? 0 : 1;
-
-    if (lado === 0) {
+    // Cambia estrictamente de lado en cada tiro
+    if (!alternarLado) {
+        // Sale por la Izquierda
         plato.x = -20;
         plato.y = canvas.height * 0.9;
-        
         plato.vx = canvas.width * (0.38 + Math.random() * 0.12); 
-        
-        // IMPULSO VERTICAL AL LÍMITE (Subido de 1.10 a 1.18)
         plato.vy = -(canvas.height * (1.18 + Math.random() * 0.15)); 
+        alternarLado = true; // El siguiente irá a la derecha
     } else {
+        // Sale por la Derecha
         plato.x = canvas.width + 20;
         plato.y = canvas.height * 0.9;
-        
         plato.vx = -canvas.width * (0.38 + Math.random() * 0.12);
         plato.vy = -(canvas.height * (1.18 + Math.random() * 0.15));
+        alternarLado = false; // El siguiente volverá a la izquierda
     }
 }
 
@@ -139,9 +141,9 @@ function dibujar() {
     ctx.lineTo(canvas.width, altoHorizonte);
     ctx.stroke();
 
-    // NUEVO COLOR TESTIGO: Aviso "PULL" en color Verde Oscuro Vibrante
+    // NUEVO COLOR TESTIGO: Aviso "PULL" en color ROSA FOSFORITO
     if (mostrarPullText) {
-        ctx.fillStyle = "#0f5412"; 
+        ctx.fillStyle = "#ff007f"; 
         ctx.font = "bold 75px sans-serif"; 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -150,26 +152,28 @@ function dibujar() {
 
     if (plato.visible) {
         const radioPlatoActual = RADIO_PLATO_MAX - (plato.progreso * (RADIO_PLATO_MAX - RADIO_PLATO_MIN));
+        
+        // El tamaño del punto amarillo también se adapta suavemente a la profundidad pero partiendo de su escala gigante
         const radioPuntoActual = RADIO_PUNTO_BASE * (radioPlatoActual / RADIO_PLATO_MAX);
 
-        // Punto amarillo con borde negro
+        // 1. DIBUJAR PUNTO DE ANTICIPACIÓN AMARILLO GIGANTE (Con borde negro grueso)
         ctx.beginPath();
         ctx.arc(impacto.x, impacto.y, radioPuntoActual, 0, Math.PI * 2);
         ctx.fillStyle = "#ffff00"; 
         ctx.fill();
         
         ctx.strokeStyle = "#000000"; 
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2; // Borde más grueso para máxima definición
         ctx.stroke();
 
-        // Plato naranja
+        // 2. DIBUJAR PLATO ROJO PEQUEÑO
         ctx.beginPath();
         ctx.ellipse(plato.x, plato.y, radioPlatoActual * 1.3, radioPlatoActual * 0.7, 0, 0, Math.PI * 2);
         ctx.fillStyle = "#ff4500"; 
         ctx.fill();
         
         ctx.strokeStyle = "#b33000";
-        ctx.lineWidth = Math.max(1.5, radioPlatoActual * 0.15);
+        ctx.lineWidth = Math.max(1, radioPlatoActual * 0.15);
         ctx.stroke();
     }
 }
