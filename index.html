@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="cache-control" content="no-cache, must-revalidate, post-check=0, pre-check=0">
-<title>ClayVision Trainer v0.13 (Entrenamiento Visual)</title>
+<title>ClayVision Trainer v0.14 (Diagonal Recta)</title>
 
 <style>
 html, body {
@@ -20,7 +20,7 @@ canvas {
 
 <body>
 
-<canvas id="cv" data-version="1313"></canvas>
+<canvas id="cv" data-version="1414"></canvas>
 
 <script>
 const canvas = document.getElementById("cv");
@@ -34,37 +34,26 @@ window.addEventListener("resize", resize);
 resize();
 
 //-------------------------------------------
-// CONFIGURACIÓN (INVERSIÓN VISUAL PARA ENTRENAMIENTO)
+// ⚙️ VARIABLES EDITABLES DESDE GITHUB
 //-------------------------------------------
-const RADIO_PUNTO_BASE = 26;   // ¡GIGANTE! El punto de anticipación amarillo es el doble de grande
-const RADIO_PLATO_MAX = 11;    // Reducido a la mitad para que no llame tanto la atención
-const RADIO_PLATO_MIN = 6;     
+const VELOCIDAD_PLATO = 400;   // ◄ MODIFICA ESTE NÚMERO PARA CAMBIAR LA VELOCIDAD (Más alto = más rápido)
+const TIEMPO_CICLO = 5000;     // Tiempo de espera entre platos (en milisegundos)
 
-const GRAVEDAD = 930;          
-const TIEMPO_CICLO = 8000;     // 8 segundos de descanso
+// Ajustes visuales de entrenamiento
+const RADIO_PUNTO_BASE = 20;   // Punto amarillo gigante
+const RADIO_PLATO_MAX = 11;    // Plato rojo pequeño
+const RADIO_PLATO_MIN = 6;     
 const TIEMPO_PULL = 1500;      
 const FACTOR_ADELANTO = 0.16;  
-
 const ALTURA_HORIZONTE_FACTOR = 0.65; 
 
 //-------------------------------------------
-let plato = {
-    x: 0,
-    y: 0,
-    vx: 0,
-    vy: 0,
-    progreso: 0,               
-    visible: false
-};
-
+let plato = { x: 0, y: 0, vx: 0, vy: 0, progreso: 0, visible: false };
 let impacto = { x: 0, y: 0 };
 let ultimo = performance.now();
 let esperando = true;
 let temporizador = TIEMPO_CICLO;
 let mostrarPullText = false;
-
-// Variable testigo para alternar lados de forma estricta (false = izquierda, true = derecha)
-let alternarLado = false;
 
 //-------------------------------------------
 function lanzar() {
@@ -72,36 +61,40 @@ function lanzar() {
     mostrarPullText = false;
     plato.progreso = 0;
 
-    // Cambia estrictamente de lado en cada tiro
-    if (!alternarLado) {
-        // Sale por la Izquierda
-        plato.x = -20;
-        plato.y = canvas.height * 0.9;
-        plato.vx = canvas.width * (0.38 + Math.random() * 0.12); 
-        plato.vy = -(canvas.height * (1.18 + Math.random() * 0.15)); 
-        alternarLado = true; // El siguiente irá a la derecha
-    } else {
-        // Sale por la Derecha
-        plato.x = canvas.width + 20;
-        plato.y = canvas.height * 0.9;
-        plato.vx = -canvas.width * (0.38 + Math.random() * 0.12);
-        plato.vy = -(canvas.height * (1.18 + Math.random() * 0.15));
-        alternarLado = false; // El siguiente volverá a la izquierda
-    }
+    // Posición inicial: Esquina inferior derecha
+    plato.x = canvas.width + 20;
+    plato.y = canvas.height * 0.9;
+
+    // CÁLCULO DE LÍNEA RECTA DIAGONAL HACIA LA ESQUINA SUPERIOR IZQUIERDA
+    // Apuntamos al 10% del ancho (izquierda) y al 10% del alto (arriba)
+    const destinoX = canvas.width * 0.1;
+    const destinoY = canvas.height * 0.1;
+
+    // Vector de dirección
+    const dx = destinoX - plato.x;
+    const dy = destinoY - plato.y;
+    const distancia = Math.sqrt(dx * dx + dy * dy);
+
+    // Velocidades fijas basadas en tu variable superior (Sin variaciones aleatorias)
+    plato.vx = (dx / distancia) * VELOCIDAD_PLATO;
+    plato.vy = (dy / distancia) * VELOCIDAD_PLATO;
 }
 
 function actualizar(dt) {
     if (plato.visible) {
-        plato.vy += GRAVEDAD * dt;
+        // Movimiento rectilíneo uniforme puro (Sin gravedad)
         plato.x += plato.vx * dt;
         plato.y += plato.vy * dt;
         
-        plato.progreso = Math.min(1, plato.progreso + dt / 2.5);
+        // Simulación visual de lejanía progresiva
+        plato.progreso = Math.min(1, plato.progreso + dt / 2.2);
 
+        // Adelanto dinámico en línea recta
         impacto.x = plato.x + (plato.vx * FACTOR_ADELANTO);
         impacto.y = plato.y + (plato.vy * FACTOR_ADELANTO);
 
-        if (plato.x < -150 || plato.x > canvas.width + 150 || plato.y > canvas.height + 50) {
+        // Desaparece al rebasar el margen izquierdo superior
+        if (plato.x < -100 || plato.y < -100) {
             plato.visible = false;
             esperando = true;
             temporizador = TIEMPO_CICLO;
@@ -125,11 +118,9 @@ function actualizar(dt) {
 function dibujar() {
     const altoHorizonte = canvas.height * ALTURA_HORIZONTE_FACTOR;
 
-    // Cielo
+    // Escenario
     ctx.fillStyle = "#aed8f2";
     ctx.fillRect(0, 0, canvas.width, altoHorizonte);
-
-    // Suelo
     ctx.fillStyle = "#2f6f2f";
     ctx.fillRect(0, altoHorizonte, canvas.width, canvas.height - altoHorizonte);
 
@@ -141,9 +132,9 @@ function dibujar() {
     ctx.lineTo(canvas.width, altoHorizonte);
     ctx.stroke();
 
-    // NUEVO COLOR TESTIGO: Aviso "PULL" en color ROSA FOSFORITO
+    // COLOR TESTIGO NUEVO: Blanco puro para saber que es la versión de línea recta diagonal
     if (mostrarPullText) {
-        ctx.fillStyle = "#ff007f"; 
+        ctx.fillStyle = "#ffffff"; 
         ctx.font = "bold 75px sans-serif"; 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -152,26 +143,22 @@ function dibujar() {
 
     if (plato.visible) {
         const radioPlatoActual = RADIO_PLATO_MAX - (plato.progreso * (RADIO_PLATO_MAX - RADIO_PLATO_MIN));
-        
-        // El tamaño del punto amarillo también se adapta suavemente a la profundidad pero partiendo de su escala gigante
         const radioPuntoActual = RADIO_PUNTO_BASE * (radioPlatoActual / RADIO_PLATO_MAX);
 
-        // 1. DIBUJAR PUNTO DE ANTICIPACIÓN AMARILLO GIGANTE (Con borde negro grueso)
+        // Punto amarillo gigante con borde negro
         ctx.beginPath();
         ctx.arc(impacto.x, impacto.y, radioPuntoActual, 0, Math.PI * 2);
         ctx.fillStyle = "#ffff00"; 
         ctx.fill();
-        
         ctx.strokeStyle = "#000000"; 
-        ctx.lineWidth = 2; // Borde más grueso para máxima definición
+        ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 2. DIBUJAR PLATO ROJO PEQUEÑO
+        // Plato rojo reducido
         ctx.beginPath();
         ctx.ellipse(plato.x, plato.y, radioPlatoActual * 1.3, radioPlatoActual * 0.7, 0, 0, Math.PI * 2);
         ctx.fillStyle = "#ff4500"; 
         ctx.fill();
-        
         ctx.strokeStyle = "#b33000";
         ctx.lineWidth = Math.max(1, radioPlatoActual * 0.15);
         ctx.stroke();
@@ -181,12 +168,9 @@ function dibujar() {
 function loop(t) {
     let dt = (t - ultimo) / 1000;
     ultimo = t;
-
     if (dt > 0.1) dt = 0.1;
-
     actualizar(dt);
     dibujar();
-
     requestAnimationFrame(loop);
 }
 
