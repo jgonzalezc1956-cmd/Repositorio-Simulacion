@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>ClayVision Trainer v0.03</title>
+<title>ClayVision Trainer v0.07</title>
 
 <style>
 html, body {
@@ -33,14 +33,18 @@ window.addEventListener("resize", resize);
 resize();
 
 //-------------------------------------------
-// CONFIGURACIÓN AJUSTADA PARA PARÁBOLAS REALES
+// CONFIGURACIÓN (PANTALLA COMPLETA + ELEMENTOS DE ALTA VISIBILIDAD)
 //-------------------------------------------
-const RADIO_PLATO = 11;        // Ajustado para TV de 50"
-const RADIO_PUNTO = 4;
-const GRAVEDAD = 600;          // Gravedad más alta para obligar al plato a caer de forma natural
+const RADIO_PLATO_MAX = 22;    
+const RADIO_PLATO_MIN = 10;    
+const RADIO_PUNTO_BASE = 5.5;  // Un pelín más grande para mejorar la visualización remota
+
+const GRAVEDAD = 500;          
 const TIEMPO_CICLO = 5000;     
 const TIEMPO_PULL = 1500;      
 const FACTOR_ADELANTO = 0.16;  
+
+const ALTURA_HORIZONTE_FACTOR = 0.65; 
 
 //-------------------------------------------
 let plato = {
@@ -48,6 +52,7 @@ let plato = {
     y: 0,
     vx: 0,
     vy: 0,
+    progreso: 0,               
     visible: false
 };
 
@@ -61,46 +66,35 @@ let mostrarPullText = false;
 function lanzar() {
     plato.visible = true;
     mostrarPullText = false;
+    plato.progreso = 0;
 
-    // Alternar lado de salida: 0 = Izquierda, 1 = Derecha
     const lado = Math.random() < 0.5 ? 0 : 1;
 
     if (lado === 0) {
-        // Esquina inferior izquierda (con un pequeño margen hacia el centro)
-        plato.x = canvas.width * 0.05;
-        plato.y = canvas.height;
-        
-        // CÁLCULO ALEATORIO DE TRAYECTORIA (Foso/Skeet simulado)
-        // vx controla qué tan lejos llega hacia la derecha
-        plato.vx = canvas.width * (0.35 + Math.random() * 0.25);
-        // vy controla la altura del disparo vertical
-        plato.vy = -(canvas.height * (0.85 + Math.random() * 0.20));
+        plato.x = -20;
+        plato.y = canvas.height * 0.9;
+        plato.vx = canvas.width * (0.45 + Math.random() * 0.15);
+        plato.vy = -(canvas.height * (0.8 + Math.random() * 0.15));
     } else {
-        // Esquina inferior derecha (con un pequeño margen hacia el centro)
-        plato.x = canvas.width * 0.95;
-        plato.y = canvas.height;
-        
-        // Lo mismo pero invertido hacia la izquierda
-        plato.vx = -canvas.width * (0.35 + Math.random() * 0.25);
-        plato.vy = -(canvas.height * (0.85 + Math.random() * 0.20));
+        plato.x = canvas.width + 20;
+        plato.y = canvas.height * 0.9;
+        plato.vx = -canvas.width * (0.45 + Math.random() * 0.15);
+        plato.vy = -(canvas.height * (0.8 + Math.random() * 0.15));
     }
 }
 
 function actualizar(dt) {
     if (plato.visible) {
-        // Aplicar gravedad constante al vector vertical
         plato.vy += GRAVEDAD * dt;
-
-        // Actualizar posiciones físicas
         plato.x += plato.vx * dt;
         plato.y += plato.vy * dt;
+        
+        plato.progreso = Math.min(1, plato.progreso + dt / 1.8);
 
-        // Punto de anticipación dinámico basado en la velocidad de ese instante
         impacto.x = plato.x + (plato.vx * FACTOR_ADELANTO);
         impacto.y = plato.y + (plato.vy * FACTOR_ADELANTO);
 
-        // El plato muere si cae al suelo o sale demasiado de los límites laterales
-        if (plato.x < -100 || plato.x > canvas.width + 100 || plato.y > canvas.height + 50) {
+        if (plato.x < -150 || plato.x > canvas.width + 150 || plato.y > canvas.height + 50) {
             plato.visible = false;
             esperando = true;
             temporizador = TIEMPO_CICLO;
@@ -122,32 +116,55 @@ function actualizar(dt) {
 }
 
 function dibujar() {
-    ctx.fillStyle = "#2f6f2f";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const altoHorizonte = canvas.height * ALTURA_HORIZONTE_FACTOR;
 
+    // 1. DIBUJAR EL CIELO (Azul suave)
+    ctx.fillStyle = "#aed8f2";
+    ctx.fillRect(0, 0, canvas.width, altoHorizonte);
+
+    // 2. DIBUJAR EL SUELO (Verde cancha)
+    ctx.fillStyle = "#2f6f2f";
+    ctx.fillRect(0, altoHorizonte, canvas.width, canvas.height - altoHorizonte);
+
+    // 3. LÍNEA DE HORIZONTE
+    ctx.strokeStyle = "#1d471d";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, altoHorizonte);
+    ctx.lineTo(canvas.width, altoHorizonte);
+    ctx.stroke();
+
+    // Aviso "PULL"
     if (mostrarPullText) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-        ctx.font = "bold 70px sans-serif"; // Ligeramente más grande para la TV
+        ctx.fillStyle = "rgba(40, 40, 40, 0.8)";
+        ctx.font = "bold 75px sans-serif"; 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("¡PULL!", canvas.width / 2, canvas.height / 2);
+        ctx.fillText("¡PULL!", canvas.width / 2, canvas.height * 0.35);
     }
 
     if (plato.visible) {
-        // Punto blanco (Adelanto)
-        ctx.beginPath();
-        ctx.arc(impacto.x, impacto.y, RADIO_PUNTO, 0, Math.PI * 2);
-        ctx.fillStyle = "white";
-        ctx.fill();
+        const radioPlatoActual = RADIO_PLATO_MAX - (plato.progreso * (RADIO_PLATO_MAX - RADIO_PLATO_MIN));
+        const radioPuntoActual = RADIO_PUNTO_BASE * (radioPlatoActual / RADIO_PLATO_MAX);
 
-        // Plato naranja de alta visibilidad
+        // DIBUJAR PUNTO DE ADELANTO AMARILLO (Con borde de contraste negro)
         ctx.beginPath();
-        ctx.arc(plato.x, plato.y, RADIO_PLATO, 0, Math.PI * 2);
+        ctx.arc(impacto.x, impacto.y, radioPuntoActual, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffff00"; // Amarillo puro fosforito
+        ctx.fill();
+        
+        ctx.strokeStyle = "#000000"; // Borde negro para que resalte en el cielo azul
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // DIBUJAR PLATO NARANJA
+        ctx.beginPath();
+        ctx.ellipse(plato.x, plato.y, radioPlatoActual * 1.3, radioPlatoActual * 0.7, 0, 0, Math.PI * 2);
         ctx.fillStyle = "#ff4500"; 
         ctx.fill();
         
         ctx.strokeStyle = "#b33000";
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = Math.max(1.5, radioPlatoActual * 0.15);
         ctx.stroke();
     }
 }
