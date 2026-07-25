@@ -2,19 +2,22 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>ClayVision Trainer v0.07</title>
+<title>ClayVision Trainer v0.01</title>
 
 <style>
-html, body {
-    margin: 0;
-    overflow: hidden;
-    background: #2f6f2f;
-    font-family: sans-serif;
+
+html,body{
+    margin:0;
+    overflow:hidden;
+    background:#2f6f2f;
 }
-canvas {
-    display: block;
+
+canvas{
+    display:block;
 }
+
 </style>
+
 </head>
 
 <body>
@@ -22,166 +25,169 @@ canvas {
 <canvas id="cv"></canvas>
 
 <script>
-const canvas = document.getElementById("cv");
-const ctx = canvas.getContext("2d");
 
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+const canvas=document.getElementById("cv");
+const ctx=canvas.getContext("2d");
+
+function resize(){
+
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
+
 }
-window.addEventListener("resize", resize);
+
+window.addEventListener("resize",resize);
 resize();
 
-//-------------------------------------------
-// CONFIGURACIÓN (PANTALLA COMPLETA + ELEMENTOS DE ALTA VISIBILIDAD)
-//-------------------------------------------
-const RADIO_PLATO_MAX = 22;    
-const RADIO_PLATO_MIN = 10;    
-const RADIO_PUNTO_BASE = 5.5;  // Un pelín más grande para mejorar la visualización remota
-
-const GRAVEDAD = 500;          
-const TIEMPO_CICLO = 5000;     
-const TIEMPO_PULL = 1500;      
-const FACTOR_ADELANTO = 0.16;  
-
-const ALTURA_HORIZONTE_FACTOR = 0.65; 
 
 //-------------------------------------------
-let plato = {
-    x: 0,
-    y: 0,
-    vx: 0,
-    vy: 0,
-    progreso: 0,               
-    visible: false
+// CONFIGURACIÓN
+//-------------------------------------------
+
+const RADIO_PLATO=8;          // píxeles (lo ajustaremos)
+const RADIO_PUNTO=4;
+
+const VELOCIDAD=700;          // píxeles/segundo
+
+const ESPERA_MIN=6000;
+const ESPERA_MAX=8000;
+
+
+//-------------------------------------------
+
+let plato={
+    x:-100,
+    y:canvas.height*0.45,
+    visible:false
 };
 
-let impacto = { x: 0, y: 0 };
-let ultimo = performance.now();
-let esperando = true;
-let temporizador = TIEMPO_CICLO;
-let mostrarPullText = false;
+let impacto={
+    x:0,
+    y:0
+};
+
+let ultimo=performance.now();
+
+let esperando=true;
+
+let temporizador=3000;
+
 
 //-------------------------------------------
-function lanzar() {
-    plato.visible = true;
-    mostrarPullText = false;
-    plato.progreso = 0;
 
-    const lado = Math.random() < 0.5 ? 0 : 1;
+function lanzar(){
 
-    if (lado === 0) {
-        plato.x = -20;
-        plato.y = canvas.height * 0.9;
-        plato.vx = canvas.width * (0.45 + Math.random() * 0.15);
-        plato.vy = -(canvas.height * (0.8 + Math.random() * 0.15));
-    } else {
-        plato.x = canvas.width + 20;
-        plato.y = canvas.height * 0.9;
-        plato.vx = -canvas.width * (0.45 + Math.random() * 0.15);
-        plato.vy = -(canvas.height * (0.8 + Math.random() * 0.15));
-    }
+    plato.visible=true;
+
+    plato.x=-80;
+
+    plato.y=canvas.height*0.45;
+
 }
 
-function actualizar(dt) {
-    if (plato.visible) {
-        plato.vy += GRAVEDAD * dt;
-        plato.x += plato.vx * dt;
-        plato.y += plato.vy * dt;
-        
-        plato.progreso = Math.min(1, plato.progreso + dt / 1.8);
 
-        impacto.x = plato.x + (plato.vx * FACTOR_ADELANTO);
-        impacto.y = plato.y + (plato.vy * FACTOR_ADELANTO);
+function actualizar(dt){
 
-        if (plato.x < -150 || plato.x > canvas.width + 150 || plato.y > canvas.height + 50) {
-            plato.visible = false;
-            esperando = true;
-            temporizador = TIEMPO_CICLO;
+    if(plato.visible){
+
+        plato.x+=VELOCIDAD*dt;
+
+        // Punto de intercepción (provisional)
+
+        impacto.x=plato.x+80;
+
+        impacto.y=plato.y;
+
+        if(plato.x>canvas.width+100){
+
+            plato.visible=false;
+
+            esperando=true;
+
+            temporizador=
+                ESPERA_MIN+
+                Math.random()*(ESPERA_MAX-ESPERA_MIN);
+
         }
-    } else {
-        if (esperando) {
-            temporizador -= dt * 1000;
 
-            if (temporizador <= TIEMPO_PULL) {
-                mostrarPullText = true;
-            }
+    }
+    else{
 
-            if (temporizador <= 0) {
-                esperando = false;
+        if(esperando){
+
+            temporizador-=dt*1000;
+
+            if(temporizador<=0){
+
+                esperando=false;
+
                 lanzar();
+
             }
+
         }
+
     }
+
 }
 
-function dibujar() {
-    const altoHorizonte = canvas.height * ALTURA_HORIZONTE_FACTOR;
 
-    // 1. DIBUJAR EL CIELO (Azul suave)
-    ctx.fillStyle = "#aed8f2";
-    ctx.fillRect(0, 0, canvas.width, altoHorizonte);
+function dibujar(){
 
-    // 2. DIBUJAR EL SUELO (Verde cancha)
-    ctx.fillStyle = "#2f6f2f";
-    ctx.fillRect(0, altoHorizonte, canvas.width, canvas.height - altoHorizonte);
+    ctx.fillStyle="#2f6f2f";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // 3. LÍNEA DE HORIZONTE
-    ctx.strokeStyle = "#1d471d";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, altoHorizonte);
-    ctx.lineTo(canvas.width, altoHorizonte);
-    ctx.stroke();
+    if(plato.visible){
 
-    // Aviso "PULL"
-    if (mostrarPullText) {
-        ctx.fillStyle = "rgba(40, 40, 40, 0.8)";
-        ctx.font = "bold 75px sans-serif"; 
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("¡PULL!", canvas.width / 2, canvas.height * 0.35);
+        // Punto blanco
+
+        ctx.beginPath();
+        ctx.arc(
+            impacto.x,
+            impacto.y,
+            RADIO_PUNTO,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fillStyle="white";
+        ctx.fill();
+
+        // Plato rojo
+
+        ctx.beginPath();
+        ctx.arc(
+            plato.x,
+            plato.y,
+            RADIO_PLATO,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fillStyle="red";
+        ctx.fill();
+
     }
 
-    if (plato.visible) {
-        const radioPlatoActual = RADIO_PLATO_MAX - (plato.progreso * (RADIO_PLATO_MAX - RADIO_PLATO_MIN));
-        const radioPuntoActual = RADIO_PUNTO_BASE * (radioPlatoActual / RADIO_PLATO_MAX);
-
-        // DIBUJAR PUNTO DE ADELANTO AMARILLO (Con borde de contraste negro)
-        ctx.beginPath();
-        ctx.arc(impacto.x, impacto.y, radioPuntoActual, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffff00"; // Amarillo puro fosforito
-        ctx.fill();
-        
-        ctx.strokeStyle = "#000000"; // Borde negro para que resalte en el cielo azul
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // DIBUJAR PLATO NARANJA
-        ctx.beginPath();
-        ctx.ellipse(plato.x, plato.y, radioPlatoActual * 1.3, radioPlatoActual * 0.7, 0, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff4500"; 
-        ctx.fill();
-        
-        ctx.strokeStyle = "#b33000";
-        ctx.lineWidth = Math.max(1.5, radioPlatoActual * 0.15);
-        ctx.stroke();
-    }
 }
 
-function loop(t) {
-    let dt = (t - ultimo) / 1000;
-    ultimo = t;
 
-    if (dt > 0.1) dt = 0.1;
+function loop(t){
+
+    let dt=(t-ultimo)/1000;
+
+    ultimo=t;
 
     actualizar(dt);
+
     dibujar();
 
     requestAnimationFrame(loop);
+
 }
 
 requestAnimationFrame(loop);
+
 </script>
 
 </body>
