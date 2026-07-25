@@ -2,9 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<!-- Línea anti-caché para la tele -->
 <meta http-equiv="cache-control" content="no-cache, must-revalidate, post-check=0, pre-check=0">
-<title>ClayVision Trainer v0.08 (Suave)</title>
+<title>ClayVision Trainer v0.09 (Optimizado)</title>
 
 <style>
 html, body {
@@ -21,7 +20,7 @@ canvas {
 
 <body>
 
-<canvas id="cv" data-version="888"></canvas>
+<canvas id="cv" data-version="999"></canvas>
 
 <script>
 const canvas = document.getElementById("cv");
@@ -35,15 +34,15 @@ window.addEventListener("resize", resize);
 resize();
 
 //-------------------------------------------
-// CONFIGURACIÓN CALIBRADA (MÁS DESPACIO)
+// CONFIGURACIÓN MEJORADA (8 SEGUNDOS + MÁXIMO RECORRIDO)
 //-------------------------------------------
 const RADIO_PLATO_MAX = 22;    
 const RADIO_PLATO_MIN = 10;    
 const RADIO_PUNTO_BASE = 5.5;  
 
-const GRAVEDAD = 380;          // Bajada de 500 a 380 para que el plato flote más al ir más lento
-const TIEMPO_CICLO = 5000;     // Se mantienen los 5 segundos de ciclo
-const TIEMPO_PULL = 1500;      
+const GRAVEDAD = 420;          // Calibrado para permitir parábolas más altas y fluidas
+const TIEMPO_CICLO = 8000;     // Aumentado a 8 segundos totales para descansar los brazos
+const TIEMPO_PULL = 1500;      // El aviso "PULL" sale 1.5 segundos antes del lanzamiento
 const FACTOR_ADELANTO = 0.16;  
 
 const ALTURA_HORIZONTE_FACTOR = 0.65; 
@@ -76,16 +75,17 @@ function lanzar() {
         plato.x = -20;
         plato.y = canvas.height * 0.9;
         
-        // VELOCIDADES REDUCIDAS (Antes multiplicaban por 0.45 y 0.8)
-        plato.vx = canvas.width * (0.35 + Math.random() * 0.12); // Más lento horizontalmente
-        plato.vy = -(canvas.height * (0.65 + Math.random() * 0.12)); // Sube con menos fuerza
+        // Se mantiene la velocidad horizontal lenta
+        plato.vx = canvas.width * (0.35 + Math.random() * 0.12); 
+        
+        // ¡MÁS IMPULSO VERTICAL! (Ahora sube entre el 70% y 85% de la pantalla)
+        plato.vy = -(canvas.height * (0.95 + Math.random() * 0.15)); 
     } else {
         plato.x = canvas.width + 20;
         plato.y = canvas.height * 0.9;
         
-        // VELOCIDADES REDUCIDAS INVERTIDAS
         plato.vx = -canvas.width * (0.35 + Math.random() * 0.12);
-        plato.vy = -(canvas.height * (0.65 + Math.random() * 0.12));
+        plato.vy = -(canvas.height * (0.95 + Math.random() * 0.15));
     }
 }
 
@@ -95,8 +95,8 @@ function actualizar(dt) {
         plato.x += plato.vx * dt;
         plato.y += plato.vy * dt;
         
-        // Ajustado el tiempo de vuelo estimado a 2.2 segundos porque ahora tarda más en cruzar
-        plato.progreso = Math.min(1, plato.progreso + dt / 2.2);
+        // Ampliado el tiempo de vuelo estimado a 2.6 segundos porque el recorrido es más largo
+        plato.progreso = Math.min(1, plato.progreso + dt / 2.6);
 
         impacto.x = plato.x + (plato.vx * FACTOR_ADELANTO);
         impacto.y = plato.y + (plato.vy * FACTOR_ADELANTO);
@@ -150,7 +150,7 @@ function dibujar() {
         const radioPlatoActual = RADIO_PLATO_MAX - (plato.progreso * (RADIO_PLATO_MAX - RADIO_PLATO_MIN));
         const radioPuntoActual = RADIO_PUNTO_BASE * (radioPlatoActual / RADIO_PLATO_MAX);
 
-        // Punto de anticipación amarillo fosforito
+        // Punto de anticipación amarillo fosforito con contorno negro
         ctx.beginPath();
         ctx.arc(impacto.x, impacto.y, radioPuntoActual, 0, Math.PI * 2);
         ctx.fillStyle = "#ffff00"; 
