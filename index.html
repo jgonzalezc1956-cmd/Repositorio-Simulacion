@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>ClayVision Trainer v0.02</title>
+<title>ClayVision Trainer v0.03</title>
 
 <style>
 html, body {
@@ -33,14 +33,14 @@ window.addEventListener("resize", resize);
 resize();
 
 //-------------------------------------------
-// CONFIGURACIÓN AJUSTADA
+// CONFIGURACIÓN AJUSTADA PARA PARÁBOLAS REALES
 //-------------------------------------------
-const RADIO_PLATO = 10;        // Un poco más grande para visibilidad en TV
+const RADIO_PLATO = 11;        // Ajustado para TV de 50"
 const RADIO_PUNTO = 4;
-const GRAVEDAD = 450;          // Píxeles/segundo al cuadrado (afecta la caída)
-const TIEMPO_CICLO = 5000;     // Ciclo estricto de 5 segundos (en milisegundos)
-const TIEMPO_PULL = 1500;      // Cuánto tiempo se muestra el aviso "PULL" antes de lanzar
-const FACTOR_ADELANTO = 0.15;  // Multiplicador físico de velocidad para el punto de anticipación
+const GRAVEDAD = 600;          // Gravedad más alta para obligar al plato a caer de forma natural
+const TIEMPO_CICLO = 5000;     
+const TIEMPO_PULL = 1500;      
+const FACTOR_ADELANTO = 0.16;  
 
 //-------------------------------------------
 let plato = {
@@ -62,41 +62,45 @@ function lanzar() {
     plato.visible = true;
     mostrarPullText = false;
 
-    // Decide aleatoriamente si sale de la izquierda (0) o de la derecha (1)
+    // Alternar lado de salida: 0 = Izquierda, 1 = Derecha
     const lado = Math.random() < 0.5 ? 0 : 1;
 
     if (lado === 0) {
-        // Esquina inferior izquierda
-        plato.x = 0;
+        // Esquina inferior izquierda (con un pequeño margen hacia el centro)
+        plato.x = canvas.width * 0.05;
         plato.y = canvas.height;
-        // Velocidades iniciales calculadas dinámicamente según la pantalla
-        plato.vx = canvas.width * 0.45 + Math.random() * (canvas.width * 0.15);
-        plato.vy = -(canvas.height * 0.75 + Math.random() * (canvas.height * 0.15));
+        
+        // CÁLCULO ALEATORIO DE TRAYECTORIA (Foso/Skeet simulado)
+        // vx controla qué tan lejos llega hacia la derecha
+        plato.vx = canvas.width * (0.35 + Math.random() * 0.25);
+        // vy controla la altura del disparo vertical
+        plato.vy = -(canvas.height * (0.85 + Math.random() * 0.20));
     } else {
-        // Esquina inferior derecha
-        plato.x = canvas.width;
+        // Esquina inferior derecha (con un pequeño margen hacia el centro)
+        plato.x = canvas.width * 0.95;
         plato.y = canvas.height;
-        plato.vx = -(canvas.width * 0.45 + Math.random() * (canvas.width * 0.15));
-        plato.vy = -(canvas.height * 0.75 + Math.random() * (canvas.height * 0.15));
+        
+        // Lo mismo pero invertido hacia la izquierda
+        plato.vx = -canvas.width * (0.35 + Math.random() * 0.25);
+        plato.vy = -(canvas.height * (0.85 + Math.random() * 0.20));
     }
 }
 
 function actualizar(dt) {
     if (plato.visible) {
-        // Aplicar gravedad física a la velocidad vertical
+        // Aplicar gravedad constante al vector vertical
         plato.vy += GRAVEDAD * dt;
 
-        // Actualizar posiciones
+        // Actualizar posiciones físicas
         plato.x += plato.vx * dt;
         plato.y += plato.vy * dt;
 
-        // PUNTO DE ANTICIPACIÓN DINÁMICO
-        // Varía según el vector de velocidad actual (vx, vy) multiplicada por el factor de reacción
+        // Punto de anticipación dinámico basado en la velocidad de ese instante
         impacto.x = plato.x + (plato.vx * FACTOR_ADELANTO);
         impacto.y = plato.y + (plato.vy * FACTOR_ADELANTO);
 
-        // Desaparece si sale de los límites de la pantalla
-        if (plato.x < -50 || plato.x > canvas.width + 50 || plato.y > canvas.height + 50) {
+        // El plato muere si cae al suelo o sale demasiado de los límites laterales
+        if (plato.x < -100 || plato.x > canvas.width + 100 || plato.y > canvas.height + 50) {
             plato.visible = false;
             esperando = true;
             temporizador = TIEMPO_CICLO;
@@ -105,7 +109,6 @@ function actualizar(dt) {
         if (esperando) {
             temporizador -= dt * 1000;
 
-            // Activa el aviso "PULL" visual cuando falte poco tiempo para el lanzamiento
             if (temporizador <= TIEMPO_PULL) {
                 mostrarPullText = true;
             }
@@ -119,35 +122,32 @@ function actualizar(dt) {
 }
 
 function dibujar() {
-    // Fondo verde cancha
     ctx.fillStyle = "#2f6f2f";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Dibujar texto "PULL" simulando la petición del tirador
     if (mostrarPullText) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-        ctx.font = "bold 64px sans-serif";
+        ctx.font = "bold 70px sans-serif"; // Ligeramente más grande para la TV
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("¡PULL!", canvas.width / 2, canvas.height / 2);
     }
 
     if (plato.visible) {
-        // Punto blanco dinámico (Adelanto calculado)
+        // Punto blanco (Adelanto)
         ctx.beginPath();
         ctx.arc(impacto.x, impacto.y, RADIO_PUNTO, 0, Math.PI * 2);
         ctx.fillStyle = "white";
         ctx.fill();
 
-        // Plato naranja/rojo tradicional
+        // Plato naranja de alta visibilidad
         ctx.beginPath();
         ctx.arc(plato.x, plato.y, RADIO_PLATO, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff4500"; // Naranja de alta visibilidad para tiro
+        ctx.fillStyle = "#ff4500"; 
         ctx.fill();
         
-        // Borde del plato para darle volumen visual
         ctx.strokeStyle = "#b33000";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
     }
 }
@@ -156,7 +156,6 @@ function loop(t) {
     let dt = (t - ultimo) / 1000;
     ultimo = t;
 
-    // Limitar el dt máximo para evitar saltos bruscos si la TV reduce frames
     if (dt > 0.1) dt = 0.1;
 
     actualizar(dt);
